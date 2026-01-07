@@ -1,8 +1,8 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { User } from "../models/user.model.js";
-import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
+// Note: uploadOnCloudinary import is removed because Multer handles it now
 
 // Helper to generate tokens
 const generateAccessAndRefreshTokens = async (userId) => {
@@ -10,7 +10,7 @@ const generateAccessAndRefreshTokens = async (userId) => {
     const user = await User.findById(userId);
     const accessToken = user.generateAccessToken();
     const refreshToken = user.generateRefreshToken();
-
+    
     user.refreshToken = refreshToken;
     await user.save({ validateBeforeSave: false });
 
@@ -37,32 +37,26 @@ const registerUser = asyncHandler(async (req, res) => {
     throw new ApiError(409, "User with email or username already exists");
   }
 
-  // 3. Handle Images (Avatar is Mandatory)
-  // req.files is provided by Multer
-  const avatarLocalPath = req.files?.avatar[0]?.path;
-  let coverImageLocalPath;
-
-  if (req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0) {
-    coverImageLocalPath = req.files.coverImage[0].path;
-  }
-
-  if (!avatarLocalPath) {
+  // 3. Handle Images (Already uploaded to Cloudinary by Middleware)
+  // Logic: Multer places the Cloudinary URL in 'file.path'
+  
+  if (!req.files || !req.files.avatar || req.files.avatar.length === 0) {
     throw new ApiError(400, "Avatar file is required");
   }
 
-  // Upload to Cloudinary
-  const avatar = await uploadOnCloudinary(avatarLocalPath);
-  const coverImage = await uploadOnCloudinary(coverImageLocalPath);
+  // Extract the Cloudinary URL directly
+  const avatarUrl = req.files.avatar[0].path;
 
-  if (!avatar) {
-    throw new ApiError(400, "Avatar upload failed");
+  let coverImageUrl = "";
+  if (req.files.coverImage && req.files.coverImage.length > 0) {
+    coverImageUrl = req.files.coverImage[0].path;
   }
 
   // 4. Create User Object
   const user = await User.create({
     fullName,
-    avatar: avatar.url,
-    coverImage: coverImage?.url || "",
+    avatar: avatarUrl,       
+    coverImage: coverImageUrl, 
     email,
     password,
     username: username.toLowerCase(),

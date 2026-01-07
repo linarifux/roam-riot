@@ -1,16 +1,14 @@
 import multer from "multer";
+import { CloudinaryStorage } from "multer-storage-cloudinary";
+import { cloudinary } from "../utils/cloudinary.js";
 
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, "./public/temp");
-  },
-  filename: function (req, file, cb) {
-    // We can make the filename unique here if we want, 
-    // but Cloudinary handles uniqueness, so keeping original name is fine for temp.
-    cb(null, file.originalname);
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: "roam-riot-users", // Folder in your Cloudinary console
+    allowed_formats: ["jpg", "jpeg", "png", "webp"],
+    // transform_parameters: { width: 500, height: 500, crop: 'limit' }, // Optional: Resize on upload
   },
 });
 
-export const upload = multer({ 
-    storage, 
-});
+export const upload = multer({ storage });

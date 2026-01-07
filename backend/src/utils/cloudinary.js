@@ -1,45 +1,30 @@
 import { v2 as cloudinary } from "cloudinary";
-import fs from "fs";
+import {configDotenv} from 'dotenv'
+configDotenv()
 
+// 1. Configure Cloudinary
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-const uploadOnCloudinary = async (localFilePath) => {
+// 2. Helper to Delete Files
+const deleteFromCloudinary = async (publicId, resourceType = "image") => {
   try {
-    if (!localFilePath) return null;
-    
-    // Upload the file on cloudinary
-    const response = await cloudinary.uploader.upload(localFilePath, {
-      resource_type: "auto", // Detects if it's image or video automatically
-    });
-    
-    // File has been uploaded successfully
-    // console.log("File uploaded successfully on Cloudinary", response.url);
-    
-    // Remove the locally saved temporary file
-    fs.unlinkSync(localFilePath); 
-    
-    return response;
+    if (!publicId) return null;
 
+    // Destroy the file on Cloudinary
+    // Note: resourceType should be 'image' or 'video'
+    const result = await cloudinary.uploader.destroy(publicId, {
+      resource_type: resourceType,
+    });
+
+    return result;
   } catch (error) {
-    // Remove the local file if upload failed to prevent clutter
-    fs.unlinkSync(localFilePath); 
+    console.error("Error deleting from Cloudinary:", error);
     return null;
   }
 };
 
-const deleteFromCloudinary = async (publicId) => {
-    try {
-        if(!publicId) return null;
-        await cloudinary.uploader.destroy(publicId);
-        return true;
-    } catch (error) {
-        console.error("Error deleting from Cloudinary", error);
-        return false;
-    }
-}
-
-export { uploadOnCloudinary, deleteFromCloudinary };
+export { cloudinary, deleteFromCloudinary };

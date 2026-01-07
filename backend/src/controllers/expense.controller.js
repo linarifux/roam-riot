@@ -3,7 +3,7 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { Expense } from "../models/expense.model.js";
 import { Tour } from "../models/tour.model.js";
-import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import { deleteFromCloudinary } from "../utils/cloudinary.js";
 import mongoose from "mongoose";
 
 // 1. Add an Expense
@@ -25,13 +25,13 @@ const addExpense = asyncHandler(async (req, res) => {
         throw new ApiError(403, "You cannot add expenses to this tour");
     }
 
-    // Optional: Upload Receipt Image
+    // Handle Receipt Image (Uploaded via Middleware)
     let receiptUrl = "";
-    if (req.file?.path) {
-        const uploadResponse = await uploadOnCloudinary(req.file.path);
-        if (uploadResponse) {
-            receiptUrl = uploadResponse.url;
-        }
+    let receiptPublicId = "";
+
+    if (req.file && req.file.path) {
+        receiptUrl = req.file.path;
+        receiptPublicId = req.file.filename;
     }
 
     const expense = await Expense.create({
@@ -41,7 +41,8 @@ const addExpense = asyncHandler(async (req, res) => {
         amount: Number(amount),
         currency: currency || "USD",
         category,
-        receiptImage: receiptUrl
+        receiptImage: receiptUrl,
+        receiptPublicId: receiptPublicId // Store this for deletion
     });
 
     return res.status(201).json(
@@ -66,7 +67,7 @@ const getTourExpenses = asyncHandler(async (req, res) => {
     // Fetch expenses sorted by newest first
     const expenses = await Expense.find({ tour: tourId }).sort({ createdAt: -1 });
 
-    // Calculate total spent manually (or we could use MongoDB aggregation)
+    // Calculate total spent manually
     const totalSpent = expenses.reduce((acc, curr) => acc + curr.amount, 0);
 
     const data = {
@@ -95,6 +96,12 @@ const deleteExpense = asyncHandler(async (req, res) => {
         throw new ApiError(403, "Unauthorized");
     }
 
+    // 1. Delete Receipt from Cloudinary if it exists
+    if (expense.receiptPublicId) {
+        await deleteFromCloudinary(expense.receiptPublicId);
+    }
+
+    // 2. Delete from DB
     await Expense.findByIdAndDelete(expenseId);
 
     return res.status(200).json(

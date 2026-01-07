@@ -14,7 +14,7 @@ const app = express(); // Initialize app here
 
 // --- Middleware Config ---
 app.use(cors({
-    origin: process.env.CORS_ORIGIN,
+    origin: ["http://localhost:8000", "http://localhost:5173"],
     credentials: true,
 }));
 app.use(express.json({ limit: LIMIT }));
