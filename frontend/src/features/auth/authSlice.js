@@ -20,7 +20,9 @@ export const register = createAsyncThunk(
       return await authService.register(user);
     } catch (error) {
       const message =
-        (error.response && error.response.data && error.response.data.message) ||
+        (error.response &&
+          error.response.data &&
+          error.response.data.message) || // Check backend ApiResponse message
         error.message ||
         error.toString();
       return thunkAPI.rejectWithValue(message);
@@ -34,7 +36,9 @@ export const login = createAsyncThunk('auth/login', async (user, thunkAPI) => {
     return await authService.login(user);
   } catch (error) {
     const message =
-      (error.response && error.response.data && error.response.data.message) ||
+      (error.response &&
+        error.response.data &&
+        error.response.data.message) ||
       error.message ||
       error.toString();
     return thunkAPI.rejectWithValue(message);
@@ -59,13 +63,15 @@ export const authSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+      // Register
       .addCase(register.pending, (state) => {
         state.isLoading = true;
       })
       .addCase(register.fulfilled, (state, action) => {
         state.isLoading = false;
         state.isSuccess = true;
-        // Note: We don't auto-login on register, user must login manually
+        // Backend returns: { statusCode, data: user, message, success }
+        // We don't auto-login here, so we don't set state.user
       })
       .addCase(register.rejected, (state, action) => {
         state.isLoading = false;
@@ -73,13 +79,15 @@ export const authSlice = createSlice({
         state.message = action.payload;
         state.user = null;
       })
+      // Login
       .addCase(login.pending, (state) => {
         state.isLoading = true;
       })
       .addCase(login.fulfilled, (state, action) => {
         state.isLoading = false;
         state.isSuccess = true;
-        state.user = action.payload.data.user;
+        // Backend returns: { statusCode, data: { user, accessToken... }, message, success }
+        state.user = action.payload.data.user; 
       })
       .addCase(login.rejected, (state, action) => {
         state.isLoading = false;
@@ -87,7 +95,17 @@ export const authSlice = createSlice({
         state.message = action.payload;
         state.user = null;
       })
+      // Logout
+      .addCase(logout.pending, (state) => {
+        state.isLoading = true; // Activate spinner
+      })
       .addCase(logout.fulfilled, (state) => {
+        state.isLoading = false; // Stop spinner
+        state.user = null;
+        state.isSuccess = false;
+      })
+      .addCase(logout.rejected, (state) => {
+        state.isLoading = false; // Stop spinner even if it fails
         state.user = null;
       });
   },
