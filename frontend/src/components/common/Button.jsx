@@ -48,7 +48,7 @@ const Button = ({
       </span>
       
       {/* Shine Effect on Hover (Optional advanced CSS) */}
-      <div className="absolute inset-0 -translate-x-full group-hover:animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/10 to-transparent z-0" />
+      <div className="absolute inset-0 -translate-x-full group-hover:animate-[shimmer_2s_infinite] bg-linear-to-r from-transparent via-white/10 to-transparent z-0" />
     </motion.button>
   );
 };

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 
 // Layouts
@@ -10,9 +10,12 @@ import Footer from './components/layout/Footer';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
-import Dashboard from './pages/Dashboard';
+import TourDetails from './pages/TourDetails';
+import Profile from './pages/Profile';
+import About from './pages/About'; // Import About Page
+import Button from './components/common/Button';
 
-// Protected Route Wrapper
+// ... (Keep ProtectedRoute and PublicRoute definitions same as before) ...
 const ProtectedRoute = ({ children }) => {
   const { user } = useSelector((state) => state.auth);
   if (!user) {
@@ -21,42 +24,43 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
+const PublicRoute = ({ children }) => {
+  const { user } = useSelector((state) => state.auth);
+  if (user) {
+    return <Navigate to="/" replace />;
+  }
+  return children;
+};
+
 function App() {
   return (
     <div className="min-h-screen bg-[#0f172a] text-slate-200 font-sans selection:bg-cyan-500/30 flex flex-col">
-      
-      {/* Global Navbar */}
       <Navbar />
 
-      {/* Main Content Area */}
-      <div className="flex-grow">
+      <div className="grow">
         <Routes>
-          {/* Public Routes */}
           <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
           
-          {/* Protected Routes */}
-          <Route 
-            path="/dashboard" 
-            element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            } 
-          />
+          {/* Add About Route */}
+          <Route path="/about" element={<About />} />
           
-          {/* 404 Fallback */}
+          <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+          <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
+
+          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+          <Route path="/tours/:id" element={<ProtectedRoute><TourDetails /></ProtectedRoute>} />
+          
           <Route path="*" element={
-              <div className="h-screen flex flex-col items-center justify-center text-slate-500">
-                  <h1 className="text-6xl font-bold text-slate-700 mb-4">404</h1>
-                  <p className="text-xl">Lost in the metaverse?</p>
+              <div className="h-screen flex flex-col items-center justify-center text-slate-500 relative overflow-hidden">
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-125 h-125 bg-cyan-500/5 blur-[100px] rounded-full pointer-events-none" />
+                  <h1 className="text-8xl font-bold text-transparent bg-clip-text bg-linear-to-b from-slate-700 to-slate-800 mb-4">404</h1>
+                  <p className="text-xl text-slate-400 mb-8 font-medium">Lost in the metaverse?</p>
+                  <Link to="/"><Button variant="outline">Take me Home</Button></Link>
               </div>
           } />
         </Routes>
       </div>
 
-      {/* Global Footer */}
       <Footer />
     </div>
   );

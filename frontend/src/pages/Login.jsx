@@ -61,7 +61,7 @@ const Login = () => {
 
       <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-[#0f172a] py-20 px-4">
         {/* Background blobs */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-cyan-500/10 blur-[120px] rounded-full pointer-events-none" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-150 h-150 bg-cyan-500/10 blur-[120px] rounded-full pointer-events-none" />
 
         <GlassCard className="w-full max-w-md relative z-10 border-t border-white/20">
           <div className="text-center mb-8">

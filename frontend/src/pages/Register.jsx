@@ -90,7 +90,7 @@ const Register = () => {
 
       <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-[#0f172a] py-20 px-4">
           {/* Decorative Background */}
-          <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-purple-500/10 blur-[120px] rounded-full pointer-events-none" />
+          <div className="absolute bottom-0 right-0 w-125 h-125 bg-purple-500/10 blur-[120px] rounded-full pointer-events-none" />
 
         <GlassCard className="w-full max-w-lg relative z-10 border-t border-white/20">
           <div className="text-center mb-6">

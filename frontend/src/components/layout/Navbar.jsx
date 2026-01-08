@@ -90,7 +90,7 @@ const Navbar = () => {
               <div className="absolute inset-0 bg-cyan-500 blur-lg opacity-50 group-hover:opacity-100 transition-opacity" />
               <Plane className="w-8 h-8 text-cyan-400 relative z-10 transform group-hover:-rotate-12 transition-transform duration-300" />
             </div>
-            <span className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-purple-500">
+            <span className="text-2xl font-bold bg-clip-text text-transparent bg-linear-to-r from-cyan-400 to-purple-500">
               RoamRiot
             </span>
           </Link>
@@ -129,7 +129,7 @@ const Navbar = () => {
                   <span className="text-slate-200 font-medium group-hover:text-cyan-400 transition-colors">
                     {user.fullName?.split(' ')[0]}
                   </span>
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-cyan-500 to-purple-600 p-[2px]">
+                  <div className="w-10 h-10 rounded-full bg-linear-to-tr from-cyan-500 to-purple-600 p-0.5">
                     <img 
                       src={getUserAvatar()} 
                       alt="User" 
