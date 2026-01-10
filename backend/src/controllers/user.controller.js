@@ -2,7 +2,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { User } from "../models/user.model.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
-// Note: uploadOnCloudinary import is removed because Multer handles it now
+import jwt from "jsonwebtoken";
 
 // Helper to generate tokens
 const generateAccessAndRefreshTokens = async (userId) => {
@@ -20,15 +20,17 @@ const generateAccessAndRefreshTokens = async (userId) => {
   }
 };
 
+// 1. Register User
 const registerUser = asyncHandler(async (req, res) => {
-  // 1. Get user details from body
+  // Get user details from body
   const { fullName, email, username, password } = req.body;
 
-  if ([fullName, email, username, password].some((field) => field?.trim() === "")) {
+  // Validation: Check if fields are empty or undefined
+  if ([fullName, email, username, password].some((field) => !field || field.trim() === "")) {
     throw new ApiError(400, "All fields are required");
   }
 
-  // 2. Check if user already exists
+  // Check if user already exists
   const existedUser = await User.findOne({
     $or: [{ username }, { email }],
   });
@@ -37,32 +39,27 @@ const registerUser = asyncHandler(async (req, res) => {
     throw new ApiError(409, "User with email or username already exists");
   }
 
-  // 3. Handle Images (Already uploaded to Cloudinary by Middleware)
-  // Logic: Multer places the Cloudinary URL in 'file.path'
+  // Handle Images (Uploaded via Middleware)
+  // Multer with Cloudinary storage puts the URL in file.path
   
-  if (!req.files || !req.files.avatar || req.files.avatar.length === 0) {
+  const avatarLocalPath = req.files?.avatar?.[0]?.path;
+  let coverImageLocalPath = req.files?.coverImage?.[0]?.path;
+
+  if (!avatarLocalPath) {
     throw new ApiError(400, "Avatar file is required");
   }
 
-  // Extract the Cloudinary URL directly
-  const avatarUrl = req.files.avatar[0].path;
-
-  let coverImageUrl = "";
-  if (req.files.coverImage && req.files.coverImage.length > 0) {
-    coverImageUrl = req.files.coverImage[0].path;
-  }
-
-  // 4. Create User Object
+  // Create User Object
   const user = await User.create({
     fullName,
-    avatar: avatarUrl,       
-    coverImage: coverImageUrl, 
+    avatar: avatarLocalPath,       
+    coverImage: coverImageLocalPath || "", 
     email,
     password,
     username: username.toLowerCase(),
   });
 
-  // 5. Return response (excluding password/refresh token)
+  // Return response (excluding password/refresh token)
   const createdUser = await User.findById(user._id).select(
     "-password -refreshToken"
   );
@@ -76,6 +73,7 @@ const registerUser = asyncHandler(async (req, res) => {
   );
 });
 
+// 2. Login User
 const loginUser = asyncHandler(async (req, res) => {
   const { email, username, password } = req.body;
 
@@ -83,6 +81,7 @@ const loginUser = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Username or email is required");
   }
 
+  // Find user by either email or username
   const user = await User.findOne({
     $or: [{ username }, { email }],
   });
@@ -106,9 +105,10 @@ const loginUser = asyncHandler(async (req, res) => {
   );
 
   // Secure Cookies Options
+  // IMPORTANT: secure: true requires HTTPS. We check NODE_ENV to allow localhost (HTTP) dev.
   const options = {
     httpOnly: true,
-    secure: true,
+    secure: process.env.NODE_ENV === "production", 
   };
 
   return res
@@ -128,13 +128,14 @@ const loginUser = asyncHandler(async (req, res) => {
     );
 });
 
+// 3. Logout User
 const logoutUser = asyncHandler(async (req, res) => {
   // Update DB to remove refresh token
   await User.findByIdAndUpdate(
     req.user._id,
     {
-      $set: {
-        refreshToken: undefined,
+      $unset: {
+        refreshToken: 1, // Removes the field entirely
       },
     },
     {
@@ -144,7 +145,7 @@ const logoutUser = asyncHandler(async (req, res) => {
 
   const options = {
     httpOnly: true,
-    secure: true,
+    secure: process.env.NODE_ENV === "production",
   };
 
   return res
@@ -154,4 +155,56 @@ const logoutUser = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, {}, "User logged out"));
 });
 
-export { registerUser, loginUser, logoutUser };
+// 4. Refresh Access Token (Optional but Recommended)
+const refreshAccessToken = asyncHandler(async (req, res) => {
+    const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken;
+
+    if (!incomingRefreshToken) {
+        throw new ApiError(401, "Unauthorized request");
+    }
+
+    try {
+        const decodedToken = jwt.verify(
+            incomingRefreshToken,
+            process.env.REFRESH_TOKEN_SECRET
+        );
+
+        const user = await User.findById(decodedToken?._id);
+
+        if (!user) {
+            throw new ApiError(401, "Invalid refresh token");
+        }
+
+        if (incomingRefreshToken !== user?.refreshToken) {
+            throw new ApiError(401, "Refresh token is expired or used");
+        }
+
+        const { accessToken, refreshToken: newRefreshToken } = await generateAccessAndRefreshTokens(user._id);
+
+        const options = {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+        };
+
+        return res
+            .status(200)
+            .cookie("accessToken", accessToken, options)
+            .cookie("refreshToken", newRefreshToken, options)
+            .json(
+                new ApiResponse(
+                    200,
+                    { accessToken, refreshToken: newRefreshToken },
+                    "Access token refreshed"
+                )
+            );
+    } catch (error) {
+        throw new ApiError(401, error?.message || "Invalid refresh token");
+    }
+});
+
+export { 
+    registerUser, 
+    loginUser, 
+    logoutUser,
+    refreshAccessToken
+};

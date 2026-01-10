@@ -7,7 +7,16 @@ import mongoose from "mongoose";
 
 // 1. Create a New Tour
 const createTour = asyncHandler(async (req, res) => {
-    const { title, description, startDate, endDate, budgetLimit, locations } = req.body;
+    const { 
+        title, 
+        description, 
+        startDate, 
+        endDate, 
+        budgetLimit, 
+        locations, 
+        isPublic, 
+        isDraft 
+    } = req.body;
 
     if (!title || !startDate) {
         throw new ApiError(400, "Title and Start Date are required");
@@ -15,7 +24,7 @@ const createTour = asyncHandler(async (req, res) => {
 
     // Handle Cover Image (Uploaded via Middleware)
     let coverImageUrl = "";
-    let coverImagePublicId = ""; // Helper to store public_id for future deletion
+    let coverImagePublicId = ""; 
 
     if (req.file && req.file.path) {
         coverImageUrl = req.file.path;
@@ -40,9 +49,12 @@ const createTour = asyncHandler(async (req, res) => {
         budgetLimit: budgetLimit || 0,
         locations: parsedLocations,
         coverImage: coverImageUrl,
-        coverImagePublicId: coverImagePublicId, // Make sure your Tour Model has this field!
+        coverImagePublicId: coverImagePublicId, // Ensure model has this if you want easy deletion
         owner: req.user._id,
-        status: "Planned"
+        status: "Planned",
+        // Default to false/true based on model if undefined, or convert string "true"/"false" to boolean
+        isPublic: isPublic === 'true' || isPublic === true, 
+        isDraft: isDraft === 'true' || isDraft === true
     });
 
     return res.status(201).json(
@@ -52,18 +64,26 @@ const createTour = asyncHandler(async (req, res) => {
 
 // 2. Get All Tours for the Logged-in User
 const getUserTours = asyncHandler(async (req, res) => {
-    const { page = 1, limit = 10 } = req.query;
+    const { page = 1, limit = 10, isDraft } = req.query;
     const skip = (page - 1) * limit;
 
-    const tours = await Tour.find({ owner: req.user._id })
+    // Build filter object
+    const filter = { owner: req.user._id };
+    
+    // Optional: Filter by draft status if provided in query
+    if (isDraft !== undefined) {
+        filter.isDraft = isDraft === 'true';
+    }
+
+    const tours = await Tour.find(filter)
         .sort({ startDate: -1 })
         .skip(skip)
         .limit(parseInt(limit));
     
-    const totalTours = await Tour.countDocuments({ owner: req.user._id });
+    const totalTours = await Tour.countDocuments(filter);
 
     return res.status(200).json(
-        new ApiResponse(200, { tours, totalTours }, "User tours fetched successfully")
+        new ApiResponse(200, { tours, totalTours, page: parseInt(page), limit: parseInt(limit) }, "User tours fetched successfully")
     );
 });
 
@@ -81,7 +101,10 @@ const getTourById = asyncHandler(async (req, res) => {
         throw new ApiError(404, "Tour not found");
     }
 
-    if (tour.owner.toString() !== req.user._id.toString()) {
+    // Logic: Owner can see everything. Others can only see if isPublic is true AND not a draft.
+    const isOwner = tour.owner.toString() === req.user._id.toString();
+
+    if (!isOwner && (!tour.isPublic || tour.isDraft)) {
         throw new ApiError(403, "You do not have permission to view this tour");
     }
 
@@ -93,7 +116,8 @@ const getTourById = asyncHandler(async (req, res) => {
 // 4. Update Tour
 const updateTour = asyncHandler(async (req, res) => {
     const { tourId } = req.params;
-    const { title, description, status, budgetLimit, endDate } = req.body;
+    // Extract potential updatable fields including visibility flags
+    const { title, description, status, budgetLimit, endDate, isPublic, isDraft } = req.body;
 
     const tour = await Tour.findById(tourId);
 
@@ -122,6 +146,10 @@ const updateTour = asyncHandler(async (req, res) => {
     if (status) tour.status = status;
     if (budgetLimit) tour.budgetLimit = budgetLimit;
     if (endDate) tour.endDate = endDate;
+    
+    // Handle booleans explicitly
+    if (isPublic !== undefined) tour.isPublic = isPublic === 'true' || isPublic === true;
+    if (isDraft !== undefined) tour.isDraft = isDraft === 'true' || isDraft === true;
 
     await tour.save();
 

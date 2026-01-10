@@ -42,6 +42,16 @@ const tourSchema = new Schema(
     ],
     coverImage: {
         type: String // Cloudinary URL specific to this trip
+    },
+    // --- Visibility & Draft Logic ---
+    isPublic: {
+        type: Boolean,
+        default: false, // Default to Private. True = Visible to community.
+        index: true, // Important for querying "Public Tours" efficiently
+    },
+    isDraft: {
+        type: Boolean,
+        default: true, // Starts as a Draft. False = Published.
     }
   },
   { timestamps: true }
